@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Flappy Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: linear-gradient(120deg, #1a1a1a 0%, #2d2d2d 100%);
+            font-family: 'Arial', sans-serif;
+            color: #fff;
+        }
+
+        .nav {
+            background: rgba(0, 0, 0, 0.9);
+            padding: 1rem;
+            box-shadow: 0 2px 10px rgba(255, 0, 0, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 20px;
+        }
+
+        .nav-links a {
+            color: #fff;
+            text-decoration: none;
+            padding: 5px 15px;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .nav-links a:hover {
+            background-color: #ff0000;
+            color: #fff;
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            flex-grow: 1;
+        }
+
+        canvas {
+            border: 2px solid #ff0000;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.3);
+            margin-top: 20px;
+        }
+
+        .score {
+            font-size: 24px;
+            color: #ff0000;
+            margin-bottom: 10px;
+        }
+
+        .instructions {
+            color: #fff;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <div class="nav-links">
+            <a href="index.html">Home</a>
+            <a href="hobbies.html">Hobbies</a>
+            <a href="resume.html">Resume</a>
+            <a href="game.html">Game</a>
+        </div>
+    </nav>
+    <div class="game-container">
+        <div class="score">Score: <span id="score">0</span></div>
+        <div class="instructions">Press SPACE to jump</div>
+        <canvas id="gameCanvas" width="400" height="600"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+
+        // Game variables
+        let score = 0;
+        let gameOver = false;
+        const gravity = 0.5;
+        const jumpStrength = -10;
+        const pipeWidth = 60;
+        const pipeGap = 150;
+        const pipeSpeed = 3;
+
+        // Bird object
+        const bird = {
+            x: 100,
+            y: canvas.height / 2,
+            velocity: 0,
+            radius: 15
+        };
+
+        // Array to store pipes
+        let pipes = [];
+
+        // Create initial pipes
+        function createPipe() {
+            const gapPosition = Math.random() * (canvas.height - pipeGap - 100) + 50;
+            pipes.push({
+                x: canvas.width,
+                gapY: gapPosition
+            });
+        }
+
+        // Game controls
+        document.addEventListener('keydown', function(e) {
+            if (e.code === 'Space') {
+                if (gameOver) {
+                    // Reset game
+                    resetGame();
+                } else {
+                    // Bird jump
+                    bird.velocity = jumpStrength;
+                }
+                e.preventDefault();
+            }
+        });
+
+        // Reset game function
+        function resetGame() {
+            bird.y = canvas.height / 2;
+            bird.velocity = 0;
+            pipes = [];
+            score = 0;
+            scoreElement.textContent = score;
+            gameOver = false;
+        }
+
+        // Main game loop
+        function gameLoop() {
+            // Clear canvas
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            if (!gameOver) {
+                // Update bird position
+                bird.velocity += gravity;
+                bird.y += bird.velocity;
+
+                // Draw bird
+                ctx.beginPath();
+                ctx.arc(bird.x, bird.y, bird.radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#ff0000';
+                ctx.fill();
+                ctx.closePath();
+
+                // Create new pipes
+                if (pipes.length === 0 || pipes[pipes.length - 1].x < canvas.width - 300) {
+                    createPipe();
+                }
+
+                // Update and draw pipes
+                for (let i = pipes.length - 1; i >= 0; i--) {
+                    const pipe = pipes[i];
+                    pipe.x -= pipeSpeed;
+
+                    // Draw pipes
+                    ctx.fillStyle = '#00ff00';
+                    ctx.fillRect(pipe.x, 0, pipeWidth, pipe.gapY);
+                    ctx.fillRect(pipe.x, pipe.gapY + pipeGap, pipeWidth, canvas.height - pipe.gapY - pipeGap);
+
+                    // Check collision
+                    if (
+                        bird.x + bird.radius > pipe.x && 
+                        bird.x - bird.radius < pipe.x + pipeWidth &&
+                        (bird.y - bird.radius < pipe.gapY || 
+                         bird.y + bird.radius > pipe.gapY + pipeGap)
+                    ) {
+                        gameOver = true;
+                    }
+
+                    // Score point
+                    if (pipe.x + pipeWidth < bird.x && !pipe.scored) {
+                        score++;
+                        scoreElement.textContent = score;
+                        pipe.scored = true;
+                    }
+
+                    // Remove off-screen pipes
+                    if (pipe.x + pipeWidth < 0) {
+                        pipes.splice(i, 1);
+                    }
+                }
+
+                // Check boundaries
+                if (bird.y + bird.radius > canvas.height || bird.y - bird.radius < 0) {
+                    gameOver = true;
+                }
+            } else {
+                // Game over screen
+                ctx.fillStyle = '#fff';
+                ctx.font = '30px Arial';
+                ctx.fillText('Game Over!', canvas.width/2 - 80, canvas.height/2);
+                ctx.font = '20px Arial';
+                ctx.fillText('Press SPACE to restart', canvas.width/2 - 100, canvas.height/2 + 40);
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Start the game
+        gameLoop();
+    </script>
+</body>
+</html>
